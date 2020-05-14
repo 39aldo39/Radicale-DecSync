@@ -126,8 +126,8 @@ class Collection(storage.Collection, CollectionHrefMappingsMixin):
                         raise RuntimeError("Unknown sync type " + sync_type)
                     child = super().create_collection(child_path, props=props)
                     child.decsync.init_stored_entries()
-                    child.decsync.execute_stored_entries_for_path(["info"], child)
-                    child.decsync.execute_stored_entries_for_path(["resources"], child)
+                    child.decsync.execute_stored_entries_for_path_exact(["info"], child)
+                    child.decsync.execute_stored_entries_for_path_prefix(["resources"], child)
                     yield child
         elif len(attributes) == 2:
             return
