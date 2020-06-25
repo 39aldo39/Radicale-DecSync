@@ -52,6 +52,8 @@ class Collection(storage.Collection, CollectionHrefMappingsMixin):
         if len(attributes) == 2:
             decsync_dir = self._storage.decsync_dir
             sync_type = attributes[1].split("-")[0]
+            if sync_type not in ["contacts", "calendars"]:
+                raise RuntimeError("Unknown sync type " + sync_type)
             collection = attributes[1][len(sync_type)+1:]
             own_app_id = Decsync.get_app_id("Radicale")
             self.decsync = Decsync(decsync_dir, sync_type, collection, own_app_id)
@@ -60,7 +62,8 @@ class Collection(storage.Collection, CollectionHrefMappingsMixin):
                 if key == "name":
                     extra._set_meta_key("D:displayname", value, update_decsync=False)
                 elif key == "deleted":
-                    extra.delete(update_decsync=False)
+                    if value:
+                        extra.delete(update_decsync=False)
                 elif key == "color":
                     extra._set_meta_key("ICAL:calendar-color", value, update_decsync=False)
                 else:
@@ -91,8 +94,8 @@ class Collection(storage.Collection, CollectionHrefMappingsMixin):
 
             self.load_hrefs(sync_type)
 
-    def upload(self, href, vobject_item, update_decsync=True):
-        item = super().upload(href, vobject_item)
+    def upload(self, href, orig_item, update_decsync=True):
+        item = super().upload(href, orig_item)
         if update_decsync:
             self.set_href(item.uid, href)
             self.decsync.set_entry(["resources", item.uid], None, item.serialize())
