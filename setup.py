@@ -15,7 +15,7 @@ setup(
     license="GPLv3+",
     packages=["radicale_storage_decsync"],
     install_requires=[
-        "radicale<3",
+        "radicale>=3",
         "libdecsync>=1.3.1"
     ],
     classifiers=[
