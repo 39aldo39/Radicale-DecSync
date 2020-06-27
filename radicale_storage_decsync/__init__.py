@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import contextlib
 import json
 import os
 import vobject
@@ -132,7 +133,8 @@ class Collection(storage.Collection, CollectionHrefMappingsMixin):
         return super().etag
 
     def sync(self, old_token=None):
-        self.decsync.execute_all_new_entries(self)
+        if hasattr(self, "decsync"):
+            self.decsync.execute_all_new_entries(self)
         return super().sync(old_token)
 
 class Storage(storage.Storage):
@@ -145,8 +147,9 @@ class Storage(storage.Storage):
         except KeyError:
             self.decsync_dir = ""
 
-    def discover(self, path, depth="0"):
-        collections = list(super().discover(path, depth))
+    def discover(self, path, depth="0", child_context_manager=(
+            lambda path, href=None: contextlib.ExitStack())):
+        collections = list(super().discover(path, depth, child_context_manager))
         for collection in collections:
             yield collection
 
