@@ -205,5 +205,8 @@ class Storage(storage.Storage):
         else:
             raise ValueError("Unknown tag " + props.get("tag"))
 
-        path = "/%s/%s-%s/" % (username, sync_type, collection)
+        if collection.startswith(sync_type + "-"):
+            path = "/%s/%s/" % (username, collection)
+        else:
+            path = "/%s/%s-%s/" % (username, sync_type, collection)
         return super().create_collection(path, items, props)
