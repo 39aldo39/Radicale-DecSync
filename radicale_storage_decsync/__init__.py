@@ -198,6 +198,9 @@ class Storage(storage.Storage):
             return super().create_collection(href, items, props)
         username, collection = attributes
 
+        if items is not None:
+            raise ValueError("Uploading a whole collection is currently not supported with the DecSync plugin")
+
         if props.get("tag") == "VADDRESSBOOK":
             sync_type = "contacts"
         elif props.get("tag") == "VCALENDAR":
