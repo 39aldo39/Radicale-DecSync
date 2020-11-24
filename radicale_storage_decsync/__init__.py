@@ -53,7 +53,7 @@ class Collection(storage.Collection, CollectionHrefMappingsMixin):
         if len(attributes) == 2:
             decsync_dir = self._storage.decsync_dir
             sync_type = attributes[1].split("-")[0]
-            if sync_type not in ["contacts", "calendars"]:
+            if sync_type not in ["contacts", "calendars", "tasks", "memos"]:
                 raise RuntimeError("Unknown sync type " + sync_type)
             collection = attributes[1][len(sync_type)+1:]
             own_app_id = Decsync.get_app_id("Radicale")
@@ -83,10 +83,8 @@ class Collection(storage.Collection, CollectionHrefMappingsMixin):
                     vobject_item = vobject.readOne(value)
                     if sync_type == "contacts":
                         tag = "VADDRESSBOOK"
-                    elif sync_type == "calendars":
-                        tag = "VCALENDAR"
                     else:
-                        raise RuntimeError("Unknown sync type " + sync_type)
+                        tag = "VCALENDAR"
                     radicale_item.check_and_sanitize_items([vobject_item], tag=tag)
                     item = radicale_item.Item(collection=extra, vobject_item=vobject_item, uid=uid)
                     item.prepare()
@@ -98,9 +96,10 @@ class Collection(storage.Collection, CollectionHrefMappingsMixin):
     def upload(self, href, orig_item, update_decsync=True):
         item = super().upload(href, orig_item)
         if update_decsync:
+            supported_components = self.get_meta("C:supported-calendar-component-set").split(",")
             component_name = item.component_name
-            if component_name != "VEVENT":
-                raise RuntimeError("Component " + component_name + " is not supported by DecSync")
+            if len(supported_components) > 1 and component_name != "VEVENT":
+                raise RuntimeError("Component " + component_name + " is not supported by old DecSync collections. Create a new collection in Radicale for support.")
             self.set_href(item.uid, href)
             self.decsync.set_entry(["resources", item.uid], None, item.serialize())
         return item
@@ -115,14 +114,19 @@ class Collection(storage.Collection, CollectionHrefMappingsMixin):
         super().delete(href)
 
     def set_meta(self, props, update_decsync=True):
-        if update_decsync:
-            for key, value in props.items():
-                if self.get_meta(key) == value:
-                    continue
-                if key == "D:displayname":
+        for key, value in props.items():
+            old_value = self.get_meta(key)
+            if old_value == value:
+                continue
+            if key == "D:displayname":
+                if update_decsync:
                     self.decsync.set_entry(["info"], "name", value)
-                elif key == "ICAL:calendar-color":
+            elif key == "ICAL:calendar-color":
+                if update_decsync:
                     self.decsync.set_entry(["info"], "color", value)
+            elif key == "C:supported-calendar-component-set":
+                # Changing the supported components is not allowed
+                props[key] = old_value
         super().set_meta(props)
 
     def _set_meta_key(self, key, value, update_decsync=True):
@@ -166,7 +170,7 @@ class Storage(storage.Storage):
         elif len(attributes) == 1:
             username = attributes[0]
             known_paths = [collection.path for collection in collections]
-            for sync_type in ["contacts", "calendars"]:
+            for sync_type in ["contacts", "calendars", "tasks", "memos"]:
                 for collection in Decsync.list_collections(self.decsync_dir, sync_type):
                     child_path = "/%s/%s-%s/" % (username, sync_type, collection)
                     if pathutils.strip_path(child_path) in known_paths:
@@ -177,11 +181,16 @@ class Storage(storage.Storage):
                     props = {}
                     if sync_type == "contacts":
                         props["tag"] = "VADDRESSBOOK"
-                    elif sync_type == "calendars":
-                        props["tag"] = "VCALENDAR"
-                        props["C:supported-calendar-component-set"] = "VEVENT"
                     else:
-                        raise RuntimeError("Unknown sync type " + sync_type)
+                        props["tag"] = "VCALENDAR"
+                        if sync_type == "calendars":
+                            props["C:supported-calendar-component-set"] = "VEVENT"
+                        elif sync_type == "tasks":
+                            props["C:supported-calendar-component-set"] = "VTODO"
+                        elif sync_type == "memos":
+                            props["C:supported-calendar-component-set"] = "VJOURNAL"
+                        else:
+                            raise RuntimeError("Unknown sync type " + sync_type)
                     child = super().create_collection(child_path, props=props)
                     child.decsync.init_stored_entries()
                     child.decsync.execute_stored_entries_for_path_exact(["info"], child)
@@ -204,12 +213,27 @@ class Storage(storage.Storage):
         if items is not None:
             raise ValueError("Uploading a whole collection is currently not supported with the DecSync plugin")
 
-        if props.get("tag") == "VADDRESSBOOK":
+        tag = props.get("tag")
+        if tag == "VADDRESSBOOK":
             sync_type = "contacts"
-        elif props.get("tag") == "VCALENDAR":
-            sync_type = "calendars"
+        elif tag == "VCALENDAR":
+            components = props.get("C:supported-calendar-component-set").split(",")
+            component = components[0]
+            if component == "VEVENT":
+                sync_type = "calendars"
+            elif component == "VTODO":
+                sync_type = "tasks"
+            elif component == "VJOURNAL":
+                sync_type = "memos"
+            else:
+                raise RuntimeError("Unknown component " + component)
+            props["C:supported-calendar-component-set"] = component
+            for extra_component in components[1:]:
+                tmp_props = props.copy()
+                tmp_props["C:supported-calendar-component-set"] = extra_component
+                self.create_collection(href, items, tmp_props)
         else:
-            raise ValueError("Unknown tag " + props.get("tag"))
+            raise RuntimeError("Unknown tag " + tag)
 
         if collection.startswith(sync_type + "-"):
             path = "/%s/%s/" % (username, collection)
