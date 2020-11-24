@@ -98,6 +98,9 @@ class Collection(storage.Collection, CollectionHrefMappingsMixin):
     def upload(self, href, orig_item, update_decsync=True):
         item = super().upload(href, orig_item)
         if update_decsync:
+            component_name = item.component_name
+            if component_name != "VEVENT":
+                raise RuntimeError("Component " + component_name + " is not supported by DecSync")
             self.set_href(item.uid, href)
             self.decsync.set_entry(["resources", item.uid], None, item.serialize())
         return item
