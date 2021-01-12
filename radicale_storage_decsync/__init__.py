@@ -96,10 +96,12 @@ class Collection(storage.Collection, CollectionHrefMappingsMixin):
     def upload(self, href, orig_item, update_decsync=True):
         item = super().upload(href, orig_item)
         if update_decsync:
-            supported_components = self.get_meta("C:supported-calendar-component-set").split(",")
-            component_name = item.component_name
-            if len(supported_components) > 1 and component_name != "VEVENT":
-                raise RuntimeError("Component " + component_name + " is not supported by old DecSync collections. Create a new collection in Radicale for support.")
+            tag = self.get_meta("tag")
+            if tag == "VCALENDAR":
+                supported_components = self.get_meta("C:supported-calendar-component-set").split(",")
+                component_name = item.component_name
+                if len(supported_components) > 1 and component_name != "VEVENT":
+                    raise RuntimeError("Component " + component_name + " is not supported by old DecSync collections. Create a new collection in Radicale for support.")
             self.set_href(item.uid, href)
             self.decsync.set_entry(["resources", item.uid], None, item.serialize())
         return item
