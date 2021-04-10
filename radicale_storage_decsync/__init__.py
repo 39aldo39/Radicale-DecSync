@@ -98,7 +98,7 @@ class Collection(storage.Collection, CollectionHrefMappingsMixin):
         if update_decsync:
             tag = self.get_meta("tag")
             if tag == "VCALENDAR":
-                supported_components = self.get_meta("C:supported-calendar-component-set").split(",")
+                supported_components = (self.get_meta("C:supported-calendar-component-set") or "VEVENT,VTODO,VJOURNAL").split(",")
                 component_name = item.component_name
                 if len(supported_components) > 1 and component_name != "VEVENT":
                     raise RuntimeError("Component " + component_name + " is not supported by old DecSync collections. Create a new collection in Radicale for support.")
@@ -126,7 +126,7 @@ class Collection(storage.Collection, CollectionHrefMappingsMixin):
             elif key == "ICAL:calendar-color":
                 if update_decsync:
                     self.decsync.set_entry(["info"], "color", value)
-            elif key == "C:supported-calendar-component-set":
+            elif key == "C:supported-calendar-component-set" and old_value != None:
                 # Changing the supported components is not allowed
                 props[key] = old_value
         super().set_meta(props)
@@ -219,7 +219,7 @@ class Storage(storage.Storage):
         if tag == "VADDRESSBOOK":
             sync_type = "contacts"
         elif tag == "VCALENDAR":
-            components = props.get("C:supported-calendar-component-set").split(",")
+            components = props.get("C:supported-calendar-component-set", "VEVENT").split(",")
             component = components[0]
             if component == "VEVENT":
                 sync_type = "calendars"
