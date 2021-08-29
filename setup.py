@@ -16,7 +16,7 @@ setup(
     packages=["radicale_storage_decsync"],
     install_requires=[
         "radicale>=3",
-        "libdecsync>=1.3.1"
+        "libdecsync>=2.0.0"
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
