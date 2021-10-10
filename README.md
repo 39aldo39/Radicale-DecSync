@@ -29,9 +29,9 @@ Then, to launch the Radicale server, execute
 ```
 python3 -m radicale --config "~/.config/radicale/config"
 ```
-When the server is launched, you can configure it at [localhost:5232](http://localhost:5232). By default, any username and password is accepted, which should be fine as long as you do not make the server remotely accessible. For more configuration options, see the Radicale's [documentation](https://radicale.org/documentation) page.
+When the server is launched, you can configure it at [localhost:5232](http://localhost:5232). By default, any username and password is accepted, which should be fine as long as you do not make the server remotely accessible. For more configuration options, see the Radicale's [documentation](https://radicale.org/3.0.html) page.
 
-Documentation on configurating clients can be found on Radicale's [clients](https://radicale.org/clients) page.
+Documentation on configurating clients can be found on Radicale's [clients](https://radicale.org/3.0.html#documentation/supported-clients) page.
 
 Furthermore, Radicale is not started automatically after a reboot. You need to start it manually, or set up autostart based on your OS.
 
