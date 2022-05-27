@@ -212,14 +212,22 @@ class Storage(storage.Storage):
             return super().create_collection(href, items, props)
         username, collection = attributes
 
-        if items is not None:
-            raise ValueError("Uploading a whole collection is currently not supported with the DecSync plugin")
-
         tag = props.get("tag")
         if tag == "VADDRESSBOOK":
             sync_type = "contacts"
         elif tag == "VCALENDAR":
-            components = props.get("C:supported-calendar-component-set", "VEVENT").split(",")
+            components = props.get("C:supported-calendar-component-set")
+            if components is None:
+                if collection.startswith("calendars-"):
+                    components = "VEVENT"
+                elif collection.startswith("tasks-"):
+                    components = "VTODO"
+                elif collection.startswith("memos-"):
+                    components = "VJOURNAL"
+                else:
+                    # Default
+                    components = "VEVENT"
+            components = components.split(",")
             component = components[0]
             if component == "VEVENT":
                 sync_type = "calendars"
@@ -241,4 +249,9 @@ class Storage(storage.Storage):
             path = "/%s/%s/" % (username, collection)
         else:
             path = "/%s/%s-%s/" % (username, sync_type, collection)
-        return super().create_collection(path, items, props)
+        col = super().create_collection(path, None, props)
+        if items is not None:
+            for item in items:
+                href = col.get_href(item.uid)
+                col.upload(href, item)
+        return col
